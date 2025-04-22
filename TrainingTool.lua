@@ -228,6 +228,12 @@ LocalPlayer.CharacterAdded:Connect(function(character)
             if distance > 50 then -- Если персонаж переместился далеко (возможная смерть)
                 deaths = deaths + 1
                 updateStats()
+                        deaths = deaths + 1
+updateStats()
+local sound = Instance.new("Sound")
+sound.SoundId = "rbxassetid://1848389996" -- Звук "Oof"
+sound.Parent = StatsFrame
+sound:Play()
             end
             lastPosition = currentPosition
         end
