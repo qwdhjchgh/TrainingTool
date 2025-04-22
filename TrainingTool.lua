@@ -2,12 +2,12 @@
 -- Author: DFDev (STD1432)
 -- License: MIT
 -- Description: A tool to help players improve aim and track performance in Roblox shooters.
--- GitHub: https://github.com/qwdhjchg/RobloxTrainingTool
+-- GitHub: https://github.com/qwdhjchgh/TrainingTool
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 -- Создаем интерфейс
 local ScreenGui = Instance.new("ScreenGui")
@@ -15,60 +15,124 @@ ScreenGui.Name = "TrainingToolGui"
 ScreenGui.Parent = LocalPlayer.PlayerGui
 ScreenGui.ResetOnSpawn = false
 
+-- Индикатор прицела (круг с градиентом)
 local Indicator = Instance.new("Frame")
-Indicator.Size = UDim2.new(0, 30, 0, 30)
-Indicator.BackgroundColor3 = Color3.new(0, 1, 0)
-Indicator.Position = UDim2.new(0.5, -15, 0.5, -15)
+Indicator.Size = UDim2.new(0, 40, 0, 40)
+Indicator.Position = UDim2.new(0.5, -20, 0.5, -20)
+Indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+Indicator.BorderSizePixel = 0
+Indicator.BackgroundTransparency = 0.2
 Indicator.Parent = ScreenGui
 
+local IndicatorGradient = Instance.new("UIGradient")
+IndicatorGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 150, 0))
+})
+IndicatorGradient.Parent = Indicator
+
+local IndicatorCorner = Instance.new("UICorner")
+IndicatorCorner.CornerRadius = UDim.new(1, 0)
+IndicatorCorner.Parent = Indicator
+
+-- Основной фрейм статистики
 local StatsFrame = Instance.new("Frame")
-StatsFrame.Size = UDim2.new(0, 200, 0, 180)
+StatsFrame.Size = UDim2.new(0, 220, 0, 200)
 StatsFrame.Position = UDim2.new(0, 10, 0, 10)
-StatsFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-StatsFrame.BackgroundTransparency = 0.5
+StatsFrame.BackgroundColor3 = Color3.fromRGB(20, 30, 50)
+StatsFrame.BackgroundTransparency = 0.1
+StatsFrame.BorderSizePixel = 2
+StatsFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
 StatsFrame.Parent = ScreenGui
 
+local StatsGradient = Instance.new("UIGradient")
+StatsGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 30, 50)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+})
+StatsGradient.Parent = StatsFrame
+
+local StatsCorner = Instance.new("UICorner")
+StatsCorner.CornerRadius = UDim.new(0, 10)
+StatsCorner.Parent = StatsFrame
+
+local StatsStroke = Instance.new("UIStroke")
+StatsStroke.Color = Color3.fromRGB(255, 255, 255)
+StatsStroke.Thickness = 1
+StatsStroke.Transparency = 0.5
+StatsStroke.Parent = StatsFrame
+
+-- Плавное появление StatsFrame
+StatsFrame.BackgroundTransparency = 1
+local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+local tween = TweenService:Create(StatsFrame, tweenInfo, {BackgroundTransparency = 0.1})
+tween:Play()
+
+-- Заголовок
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+TitleLabel.Size = UDim2.new(1, 0, 0, 40)
 TitleLabel.Position = UDim2.new(0, 0, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.TextColor3 = Color3.new(1, 1, 1)
-TitleLabel.Text = "Training Tool by DFDev"
+TitleLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+TitleLabel.Text = "Training Tool"
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 20
 TitleLabel.Parent = StatsFrame
 
+-- Киллы
 local KillsLabel = Instance.new("TextLabel")
 KillsLabel.Size = UDim2.new(1, 0, 0, 30)
-KillsLabel.Position = UDim2.new(0, 0, 0, 30)
+KillsLabel.Position = UDim2.new(0, 0, 0, 40)
 KillsLabel.BackgroundTransparency = 1
-KillsLabel.TextColor3 = Color3.new(1, 1, 1)
+KillsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 KillsLabel.Text = "Kills: 0"
+KillsLabel.Font = Enum.Font.Gotham
+KillsLabel.TextSize = 16
 KillsLabel.Parent = StatsFrame
 
+-- Смерти
 local DeathsLabel = Instance.new("TextLabel")
 DeathsLabel.Size = UDim2.new(1, 0, 0, 30)
-DeathsLabel.Position = UDim2.new(0, 0, 0, 60)
+DeathsLabel.Position = UDim2.new(0, 0, 0, 70)
 DeathsLabel.BackgroundTransparency = 1
-DeathsLabel.TextColor3 = Color3.new(1, 1, 1)
+DeathsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 DeathsLabel.Text = "Deaths: 0"
+DeathsLabel.Font = Enum.Font.Gotham
+DeathsLabel.TextSize = 16
 DeathsLabel.Parent = StatsFrame
 
+-- K/D
 local KDLabel = Instance.new("TextLabel")
 KDLabel.Size = UDim2.new(1, 0, 0, 30)
-KDLabel.Position = UDim2.new(0, 0, 0, 90)
+KDLabel.Position = UDim2.new(0, 0, 0, 100)
 KDLabel.BackgroundTransparency = 1
-KDLabel.TextColor3 = Color3.new(1, 1, 1)
+KDLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 KDLabel.Text = "K/D: 0"
+KDLabel.Font = Enum.Font.Gotham
+KDLabel.TextSize = 16
 KDLabel.Parent = StatsFrame
 
+-- Советы
 local TipLabel = Instance.new("TextLabel")
-TipLabel.Size = UDim2.new(1, 0, 0, 60)
-TipLabel.Position = UDim2.new(0, 0, 0, 120)
+TipLabel.Size = UDim2.new(1, -10, 0, 50)
+TipLabel.Position = UDim2.new(0, 5, 0, 140)
 TipLabel.BackgroundTransparency = 1
-TipLabel.TextColor3 = Color3.new(1, 1, 0)
+TipLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
 TipLabel.Text = "Tip: Move often!"
 TipLabel.TextWrapped = true
+TipLabel.Font = Enum.Font.Gotham
+TipLabel.TextSize = 14
 TipLabel.Parent = StatsFrame
 
+-- Анимация для TipLabel (пульсация)
+local function pulseTipLabel()
+    local pulseInfo = TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+    local pulse = TweenService:Create(TipLabel, pulseInfo, {TextTransparency = 0.3})
+    pulse:Play()
+end
+pulseTipLabel()
+
+-- Переменные
 local kills = 0
 local deaths = 0
 local kd = 0
@@ -101,30 +165,42 @@ local function updateStats()
     KillsLabel.Text = "Kills: " .. kills
     DeathsLabel.Text = "Deaths: " .. deaths
     KDLabel.Text = "K/D: " .. string.format("%.2f", kd)
+    -- Цвет K/D в зависимости от значения
+    if kd > 1 then
+        KDLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    elseif kd < 1 then
+        KDLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    else
+        KDLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
 end
 
 -- Отслеживание киллов через leaderstats
-LocalPlayer:WaitForChild("leaderstats")
-local killsStat = LocalPlayer.leaderstats:FindFirstChild("Kills")
+LocalPlayer:WaitForChild("leaderstats", 10)
+local killsStat = LocalPlayer.leaderstats and LocalPlayer.leaderstats:FindFirstChild("Kills")
 if killsStat then
     kills = killsStat.Value
     killsStat:GetPropertyChangedSignal("Value"):Connect(function()
         kills = killsStat.Value
         updateStats()
     end)
+else
+    warn("Could not find leaderstats.Kills - kills tracking may not work.")
 end
 
 -- Отслеживание смертей через leaderstats
-local deathsStat = LocalPlayer.leaderstats:FindFirstChild("Deaths")
+local deathsStat = LocalPlayer.leaderstats and LocalPlayer.leaderstats:FindFirstChild("Deaths")
 if deathsStat then
     deaths = deathsStat.Value
     deathsStat:GetPropertyChangedSignal("Value"):Connect(function()
         deaths = deathsStat.Value
         updateStats()
     end)
+else
+    warn("Could not find leaderstats.Deaths - using character death tracking.")
 end
 
--- Отслеживание смертей через персонажа (если leaderstats не работает)
+-- Отслеживание смертей через персонажа
 LocalPlayer.CharacterAdded:Connect(function(character)
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.Died:Connect(function()
@@ -133,7 +209,17 @@ LocalPlayer.CharacterAdded:Connect(function(character)
     end)
 end)
 
--- Отслеживание прицела (для визуального индикатора)
+if LocalPlayer.Character then
+    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.Died:Connect(function()
+            deaths = deaths + 1
+            updateStats()
+        end)
+    end
+end
+
+-- Отслеживание прицела
 RunService.RenderStepped:Connect(function()
     local mouse = LocalPlayer:GetMouse()
     local closestPlayer, closestDistance = nil, math.huge
@@ -156,9 +242,17 @@ RunService.RenderStepped:Connect(function()
     end
 
     if closestPlayer and closestDistance < 50 then
-        Indicator.BackgroundColor3 = Color3.new(1, 0, 0)
+        Indicator.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        IndicatorGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 0, 0))
+        })
     else
-        Indicator.BackgroundColor3 = Color3.new(0, 1, 0)
+        Indicator.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        IndicatorGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 0)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 150, 0))
+        })
     end
 end)
 
