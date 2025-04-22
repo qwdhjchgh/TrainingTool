@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Chat = game:GetService("Chat")
 
 -- Создаем интерфейс
 local ScreenGui = Instance.new("ScreenGui")
@@ -163,10 +164,7 @@ local tips = {
 local function updateStats()
     kills = tonumber(kills) or 0
     deaths = tonumber(deaths) or 0
-    print("Updating stats - Kills: " .. kills .. ", Deaths: " .. deaths)
-
     kd = deaths > 0 and kills / deaths or kills
-    print("Calculated K/D: " .. kd)
 
     KillsLabel.Text = "Kills: " .. kills
     DeathsLabel.Text = "Deaths: " .. deaths
@@ -180,67 +178,29 @@ local function updateStats()
     end
 end
 
--- Отслеживание киллов через тег creator
-local function trackKillsViaCreatorTag()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            if player.Character then
-                local humanoid = player.Character:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.Died:Connect(function()
-                        wait(0.1) -- Небольшая задержка для синхронизации
-                        local creator = humanoid:FindFirstChild("creator")
-                        if creator and creator.Value == LocalPlayer then
-                            kills = kills + 1
-                            updateStats()
-                            print("Kill detected via creator tag! New kills: " .. kills)
-                        else
-                            print("Enemy died, but no creator tag or not killed by you.")
-                        end
-                    end)
+-- Отслеживание киллов через сообщения в чате
+local function trackKillsViaChat()
+    local chatGui = LocalPlayer.PlayerGui:WaitForChild("Chat", 10)
+    if chatGui then
+        Chat.Chatted:Connect(function(player, message)
+            message = message:lower()
+            -- Проверяем, содержит ли сообщение фразы, связанные с убийством
+            if message:match("убил") or message:match("killed") or message:match("eliminated") then
+                -- Проверяем, ты ли убил (например, "Вы убили X" или "Игрок Y убил X")
+                if message:match(LocalPlayer.Name:lower() .. " убил") or message:match("вы убили") then
+                    kills = kills + 1
+                    updateStats()
+                    print("Kill detected via chat! New kills: " .. kills)
                 end
             end
-            -- Подключаемся к новым персонажам игрока
-            player.CharacterAdded:Connect(function(character)
-                local humanoid = character:WaitForChild("Humanoid")
-                humanoid.Died:Connect(function()
-                    wait(0.1)
-                    local creator = humanoid:FindFirstChild("creator")
-                    if creator and creator.Value == LocalPlayer then
-                        kills = kills + 1
-                        updateStats()
-                        print("Kill detected via creator tag! New kills: " .. kills)
-                    else
-                        print("Enemy died, but no creator tag or not killed by you.")
-                    end
-                end)
-            end)
-        end
+        end)
+    else
+        warn("Chat GUI not found. Cannot track kills via chat.")
     end
 end
 
--- Запускаем отслеживание киллов
-trackKillsViaCreatorTag()
-
--- Отслеживание новых игроков
-Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then
-        player.CharacterAdded:Connect(function(character)
-            local humanoid = character:WaitForChild("Humanoid")
-            humanoid.Died:Connect(function()
-                wait(0.1)
-                local creator = humanoid:FindFirstChild("creator")
-                if creator and creator.Value == LocalPlayer then
-                    kills = kills + 1
-                    updateStats()
-                    print("Kill detected via creator tag! New kills: " .. kills)
-                else
-                    print("Enemy died, but no creator tag or not killed by you.")
-                end
-            end)
-        end)
-    end
-end)
+-- Запускаем отслеживание киллов через чат
+trackKillsViaChat()
 
 -- Отслеживание смертей через Humanoid.Died с мемным звуком "Oof"
 LocalPlayer.CharacterAdded:Connect(function(character)
