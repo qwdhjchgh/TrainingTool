@@ -180,58 +180,67 @@ local function updateStats()
     end
 end
 
--- Отслеживание киллов через уведомления об убийствах
-local function trackKillsViaNotifications()
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
-    if playerGui then
-        -- Ищем уведомления об убийствах (например, "Вы убили игрока X")
-        local function checkForKillNotifications()
-            for _, gui in pairs(playerGui:GetDescendants()) do
-                if gui:IsA("TextLabel") or gui:IsA("TextButton") then
-                    local text = gui.Text:lower()
-                    -- Ищем текст, который может указывать на убийство
-                    if text:match("вы убили") or text:match("you killed") or text:match("eliminated") then
+-- Отслеживание киллов через тег creator
+local function trackKillsViaCreatorTag()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if player.Character then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.Died:Connect(function()
+                        wait(0.1) -- Небольшая задержка для синхронизации
+                        local creator = humanoid:FindFirstChild("creator")
+                        if creator and creator.Value == LocalPlayer then
+                            kills = kills + 1
+                            updateStats()
+                            print("Kill detected via creator tag! New kills: " .. kills)
+                        else
+                            print("Enemy died, but no creator tag or not killed by you.")
+                        end
+                    end)
+                end
+            end
+            -- Подключаемся к новым персонажам игрока
+            player.CharacterAdded:Connect(function(character)
+                local humanoid = character:WaitForChild("Humanoid")
+                humanoid.Died:Connect(function()
+                    wait(0.1)
+                    local creator = humanoid:FindFirstChild("creator")
+                    if creator and creator.Value == LocalPlayer then
                         kills = kills + 1
                         updateStats()
-                        print("Kill detected via notification! New kills: " .. kills)
-                        -- Удаляем уведомление из отслеживания, чтобы не считать его повторно
-                        gui:GetPropertyChangedSignal("Text"):Connect(function()
-                            if not (text:match("вы убили") or text:match("you killed") or text:match("eliminated")) then
-                                return
-                            end
-                        end)
-                        break
+                        print("Kill detected via creator tag! New kills: " .. kills)
+                    else
+                        print("Enemy died, but no creator tag or not killed by you.")
                     end
-                end
-            end
+                end)
+            end)
         end
-
-        -- Проверяем каждую секунду
-        spawn(function()
-            while true do
-                checkForKillNotifications()
-                wait(1)
-            end
-        end)
-
-        -- Отслеживаем новые элементы в PlayerGui
-        playerGui.ChildAdded:Connect(function(child)
-            if child:IsA("TextLabel") or child:IsA("TextButton") then
-                local text = child.Text:lower()
-                if text:match("вы убили") or text:match("you killed") or text:match("eliminated") then
-                    kills = kills + 1
-                    updateStats()
-                    print("Kill detected via new notification! New kills: " .. kills)
-                end
-            end
-        end)
-    else
-        warn("PlayerGui not found. Cannot track kills via notifications.")
     end
 end
 
--- Запускаем отслеживание киллов через уведомления
-trackKillsViaNotifications()
+-- Запускаем отслеживание киллов
+trackKillsViaCreatorTag()
+
+-- Отслеживание новых игроков
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function(character)
+            local humanoid = character:WaitForChild("Humanoid")
+            humanoid.Died:Connect(function()
+                wait(0.1)
+                local creator = humanoid:FindFirstChild("creator")
+                if creator and creator.Value == LocalPlayer then
+                    kills = kills + 1
+                    updateStats()
+                    print("Kill detected via creator tag! New kills: " .. kills)
+                else
+                    print("Enemy died, but no creator tag or not killed by you.")
+                end
+            end)
+        end)
+    end
+end)
 
 -- Отслеживание смертей через Humanoid.Died с мемным звуком "Oof"
 LocalPlayer.CharacterAdded:Connect(function(character)
