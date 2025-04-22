@@ -180,67 +180,126 @@ local function updateStats()
     end
 end
 
--- Отслеживание статистики через PlayerGui (поиск по позиции)
-local statsLabel = nil
-local function findStatsLabel()
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
-    if playerGui then
-        for _, gui in pairs(playerGui:GetDescendants()) do
-            if (gui:IsA("TextLabel") or gui:IsA("TextButton")) and gui.Text:match("%d+/%d+") then
-                local pos = gui.Position
-                if pos.X.Scale > 0.8 and pos.Y.Scale > 0.8 then
-                    statsLabel = gui
-                    print("Found stats label: " .. statsLabel:GetFullName())
-                    break
+-- Отслеживание киллов через смерть врагов
+local function trackKillsViaEnemyDeath()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if player.Character then
+                local humanoid = player.Character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.Died:Connect(function()
+                        wait(0.1) -- Небольшая задержка для синхронизации
+                        -- Проверяем, ты ли убил врага (через атрибуты или PlayerGui)
+                        local statsLabel = nil
+                        for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                            if (gui:IsA("TextLabel") or gui:IsA("TextButton")) then
+                                local text = gui.Text:gsub("%s+", "")
+                                if text:match("%d+/%d+") then
+                                    statsLabel = gui
+                                    break
+                                end
+                            end
+                        end
+                        if statsLabel then
+                            local statsText = statsLabel.Text:gsub("[^0-9/]", "")
+                            print("Checking kills after enemy death - Stats text: " .. statsText)
+                            local killsValue = statsText:match("(%d+)/%d+")
+                            if killsValue then
+                                local newKills = tonumber(killsValue) or 0
+                                if newKills > kills then
+                                    kills = newKills
+                                    updateStats()
+                                    print("Kill detected! New kills: " .. kills)
+                                end
+                            end
+                        end
+                    end)
                 end
             end
+            -- Подключаемся к новым персонажам игрока
+            player.CharacterAdded:Connect(function(character)
+                local humanoid = character:WaitForChild("Humanoid")
+                humanoid.Died:Connect(function()
+                    wait(0.1)
+                    local statsLabel = nil
+                    for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                        if (gui:IsA("TextLabel") or gui:IsA("TextButton")) then
+                            local text = gui.Text:gsub("%s+", "")
+                            if text:match("%d+/%d+") then
+                                statsLabel = gui
+                                break
+                            end
+                        end
+                    end
+                    if statsLabel then
+                        local statsText = statsLabel.Text:gsub("[^0-9/]", "")
+                        print("Checking kills after enemy death - Stats text: " .. statsText)
+                        local killsValue = statsText:match("(%d+)/%d+")
+                        if killsValue then
+                            local newKills = tonumber(killsValue) or 0
+                            if newKills > kills then
+                                kills = newKills
+                                updateStats()
+                                print("Kill detected! New kills: " .. kills)
+                            end
+                        end
+                    end
+                end)
+            end)
         end
-        if not statsLabel then
-            warn("Could not find stats label in PlayerGui.")
-        end
-    else
-        warn("PlayerGui not found.")
     end
 end
 
--- Функция для обновления статистики
-local function updateStatsFromGui()
-    if statsLabel then
-        local statsText = statsLabel.Text
-        local killsValue, deathsValue = statsText:match("(%d+)/(%d+)")
-        if killsValue and deathsValue then
-            local newKills = tonumber(killsValue) or 0
-            local newDeaths = tonumber(deathsValue) or 0
-            if newKills ~= kills or newDeaths ~= deaths then
-                kills = newKills
-                deaths = newDeaths
-                updateStats()
-                print("Stats updated from GUI - Kills: " .. kills .. ", Deaths: " .. deaths)
-            end
-        else
-            warn("Could not parse stats text: " .. statsText)
-        end
-    end
-end
+-- Запускаем отслеживание киллов
+trackKillsViaEnemyDeath()
 
--- Ищем элемент статистики
-findStatsLabel()
-
--- Обновляем статистику каждую секунду
-spawn(function()
-    while true do
-        updateStatsFromGui()
-        wait(1)
+-- Отслеживание новых игроков
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function(character)
+            local humanoid = character:WaitForChild("Humanoid")
+            humanoid.Died:Connect(function()
+                wait(0.1)
+                local statsLabel = nil
+                for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                    if (gui:IsA("TextLabel") or gui:IsA("TextButton")) then
+                        local text = gui.Text:gsub("%s+", "")
+                        if text:match("%d+/%d+") then
+                            statsLabel = gui
+                            break
+                        end
+                    end
+                end
+                if statsLabel then
+                    local statsText = statsLabel.Text:gsub("[^0-9/]", "")
+                    print("Checking kills after enemy death - Stats text: " .. statsText)
+                    local killsValue = statsText:match("(%d+)/%d+")
+                    if killsValue then
+                        local newKills = tonumber(killsValue) or 0
+                        if newKills > kills then
+                            kills = newKills
+                            updateStats()
+                            print("Kill detected! New kills: " .. kills)
+                        end
+                    end
+                end
+            end)
+        end)
     end
 end)
 
--- Отслеживание смертей через Humanoid.Died
+-- Отслеживание смертей через Humanoid.Died с мемным звуком "Oof"
 LocalPlayer.CharacterAdded:Connect(function(character)
     local humanoid = character:WaitForChild("Humanoid")
     humanoid.Died:Connect(function()
         deaths = deaths + 1
         updateStats()
         print("Death detected! New deaths: " .. deaths)
+        -- Проигрываем звук "Oof"
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://1848389996" -- Звук "Oof"
+        sound.Parent = StatsFrame
+        sound:Play()
     end)
 end)
 
@@ -252,6 +311,11 @@ if LocalPlayer.Character then
             deaths = deaths + 1
             updateStats()
             print("Death detected! New deaths: " .. deaths)
+            -- Проигрываем звук "Oof"
+            local sound = Instance.new("Sound")
+            sound.SoundId = "rbxassetid://1848389996" -- Звук "Oof"
+            sound.Parent = StatsFrame
+            sound:Play()
         end)
     end
 end
