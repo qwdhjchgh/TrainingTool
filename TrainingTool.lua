@@ -181,49 +181,58 @@ local function updateStats()
 end
 
 -- Отслеживание статистики через PlayerGui (поиск по позиции)
-local function trackStatsInGui()
+local statsLabel = nil
+local function findStatsLabel()
     local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
     if playerGui then
-        -- Ищем элемент статистики в правом нижнем углу
-        local statsLabel
         for _, gui in pairs(playerGui:GetDescendants()) do
             if (gui:IsA("TextLabel") or gui:IsA("TextButton")) and gui.Text:match("%d+/%d+") then
-                -- Проверяем, что элемент в правом нижнем углу (примерно)
                 local pos = gui.Position
                 if pos.X.Scale > 0.8 and pos.Y.Scale > 0.8 then
                     statsLabel = gui
+                    print("Found stats label: " .. statsLabel:GetFullName())
                     break
                 end
             end
         end
-
-        if statsLabel then
-            print("Found stats label: " .. statsLabel:GetFullName())
-            -- Извлекаем киллы и смерти из текста (формат "Kills/Deaths")
-            local function updateFromStatsLabel()
-                local statsText = statsLabel.Text
-                local killsValue, deathsValue = statsText:match("(%d+)/(%d+)")
-                if killsValue and deathsValue then
-                    kills = tonumber(killsValue) or 0
-                    deaths = tonumber(deathsValue) or 0
-                    updateStats()
-                else
-                    warn("Could not parse stats text: " .. statsText)
-                end
-            end
-
-            -- Начальное обновление
-            updateFromStatsLabel()
-
-            -- Обновляем при изменении текста
-            statsLabel:GetPropertyChangedSignal("Text"):Connect(updateFromStatsLabel)
-        else
-            warn("Could not find stats label in PlayerGui - trying alternative method.")
+        if not statsLabel then
+            warn("Could not find stats label in PlayerGui.")
         end
     else
         warn("PlayerGui not found.")
     end
 end
+
+-- Функция для обновления статистики
+local function updateStatsFromGui()
+    if statsLabel then
+        local statsText = statsLabel.Text
+        local killsValue, deathsValue = statsText:match("(%d+)/(%d+)")
+        if killsValue and deathsValue then
+            local newKills = tonumber(killsValue) or 0
+            local newDeaths = tonumber(deathsValue) or 0
+            if newKills ~= kills or newDeaths ~= deaths then
+                kills = newKills
+                deaths = newDeaths
+                updateStats()
+                print("Stats updated from GUI - Kills: " .. kills .. ", Deaths: " .. deaths)
+            end
+        else
+            warn("Could not parse stats text: " .. statsText)
+        end
+    end
+end
+
+-- Ищем элемент статистики
+findStatsLabel()
+
+-- Обновляем статистику каждую секунду
+spawn(function()
+    while true do
+        updateStatsFromGui()
+        wait(1)
+    end
+end)
 
 -- Отслеживание смертей через Humanoid.Died
 LocalPlayer.CharacterAdded:Connect(function(character)
@@ -246,45 +255,6 @@ if LocalPlayer.Character then
         end)
     end
 end
-
--- Альтернативное отслеживание киллов через события (если PlayerGui не работает)
-LocalPlayer.CharacterAdded:Connect(function(character)
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local enemyHumanoid = player.Character:FindFirstChild("Humanoid")
-            if enemyHumanoid then
-                enemyHumanoid.Died:Connect(function()
-                    wait(0.1) -- Задержка для синхронизации
-                    local statsLabel
-                    for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                        if (gui:IsA("TextLabel") or gui:IsA("TextButton")) and gui.Text:match("%d+/%d+") then
-                            local pos = gui.Position
-                            if pos.X.Scale > 0.8 and pos.Y.Scale > 0.8 then
-                                statsLabel = gui
-                                break
-                            end
-                        end
-                    end
-                    if statsLabel then
-                        local statsText = statsLabel.Text
-                        local killsValue = statsText:match("(%d+)/%d+")
-                        if killsValue then
-                            local newKills = tonumber(killsValue) or 0
-                            if newKills > kills then
-                                kills = newKills
-                                updateStats()
-                                print("Kill detected! New kills: " .. kills)
-                            end
-                        end
-                    end
-                end)
-            end
-        end
-    end
-end)
-
--- Запускаем отслеживание статистики
-trackStatsInGui()
 
 -- Отслеживание прицела
 RunService.RenderStepped:Connect(function()
