@@ -165,7 +165,6 @@ local function updateStats()
     KillsLabel.Text = "Kills: " .. kills
     DeathsLabel.Text = "Deaths: " .. deaths
     KDLabel.Text = "K/D: " .. string.format("%.2f", kd)
-    -- Цвет K/D в зависимости от значения
     if kd > 1 then
         KDLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
     elseif kd < 1 then
@@ -175,49 +174,68 @@ local function updateStats()
     end
 end
 
--- Отслеживание киллов через leaderstats
-LocalPlayer:WaitForChild("leaderstats", 10)
-local killsStat = LocalPlayer.leaderstats and LocalPlayer.leaderstats:FindFirstChild("Kills")
-if killsStat then
-    kills = killsStat.Value
-    killsStat:GetPropertyChangedSignal("Value"):Connect(function()
-        kills = killsStat.Value
-        updateStats()
-    end)
-else
-    warn("Could not find leaderstats.Kills - kills tracking may not work.")
+-- Отслеживание статистики через PlayerGui (специфично для Gunfight Arena)
+local function trackStatsInGui()
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+    if playerGui then
+        -- Ищем элемент статистики (например, "0/10" в правом нижнем углу)
+        local statsLabel
+        for _, gui in pairs(playerGui:GetDescendants()) do
+            if gui:IsA("TextLabel") and gui.Text:match("%d+/%d+") then
+                statsLabel = gui
+                break
+            end
+        end
+
+        if statsLabel then
+            -- Извлекаем киллы и смерти из текста (формат "Kills/Deaths")
+            local function updateFromStatsLabel()
+                local statsText = statsLabel.Text
+                local killsValue, deathsValue = statsText:match("(%d+)/(%d+)")
+                if killsValue and deathsValue then
+                    kills = tonumber(killsValue) or 0
+                    deaths = tonumber(deathsValue) or 0
+                    updateStats()
+                end
+            end
+
+            -- Начальное обновление
+            updateFromStatsLabel()
+
+            -- Обновляем при изменении текста
+            statsLabel:GetPropertyChangedSignal("Text"):Connect(updateFromStatsLabel)
+        else
+            warn("Could not find stats label in PlayerGui - stats tracking may not work.")
+        end
+    end
 end
 
--- Отслеживание смертей через leaderstats
-local deathsStat = LocalPlayer.leaderstats and LocalPlayer.leaderstats:FindFirstChild("Deaths")
-if deathsStat then
-    deaths = deathsStat.Value
-    deathsStat:GetPropertyChangedSignal("Value"):Connect(function()
-        deaths = deathsStat.Value
-        updateStats()
-    end)
-else
-    warn("Could not find leaderstats.Deaths - using character death tracking.")
+-- Отслеживание смертей через телепортацию (альтернатива Humanoid.Died)
+local lastPosition = nil
+if LocalPlayer.Character then
+    lastPosition = LocalPlayer.Character.HumanoidRootPart.Position
 end
 
--- Отслеживание смертей через персонажа
 LocalPlayer.CharacterAdded:Connect(function(character)
-    local humanoid = character:WaitForChild("Humanoid")
-    humanoid.Died:Connect(function()
-        deaths = deaths + 1
-        updateStats()
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    lastPosition = humanoidRootPart.Position
+
+    -- Проверяем телепортацию (возможный признак смерти)
+    RunService.Heartbeat:Connect(function()
+        if humanoidRootPart and lastPosition then
+            local currentPosition = humanoidRootPart.Position
+            local distance = (currentPosition - lastPosition).Magnitude
+            if distance > 50 then -- Если персонаж переместился далеко (возможная смерть)
+                deaths = deaths + 1
+                updateStats()
+            end
+            lastPosition = currentPosition
+        end
     end)
 end)
 
-if LocalPlayer.Character then
-    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.Died:Connect(function()
-            deaths = deaths + 1
-            updateStats()
-        end)
-    end
-end
+-- Запускаем отслеживание статистики
+trackStatsInGui()
 
 -- Отслеживание прицела
 RunService.RenderStepped:Connect(function()
