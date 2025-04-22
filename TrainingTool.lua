@@ -1,7 +1,8 @@
 -- Training Tool for Roblox Shooters (e.g., Gunfight Arena)
--- Author: [Твоё имя или ник]
--- License: MIT (или другой лицензии, которую выберешь)
+-- Author: DFDev (STD1432)
+-- License: MIT
 -- Description: A tool to help players improve aim and track performance in Roblox shooters.
+-- GitHub: https://github.com/qwdhjchg/RobloxTrainingTool
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -32,7 +33,7 @@ TitleLabel.Size = UDim2.new(1, 0, 0, 30)
 TitleLabel.Position = UDim2.new(0, 0, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.TextColor3 = Color3.new(1, 1, 1)
-TitleLabel.Text = "Training Tool"
+TitleLabel.Text = "Training Tool by DFDev"
 TitleLabel.Parent = StatsFrame
 
 local KillsLabel = Instance.new("TextLabel")
@@ -76,10 +77,63 @@ local tips = {
     "Tip: Use headphones to hear footsteps!",
     "Tip: Control map corners for better positioning!",
     "Tip: Try weapons with high accuracy, like M4A1!",
-    "Tip: Play with friends for better coordination!"
+    "Tip: Play with friends for better coordination!",
+    "Tip: On Downtown, hold rooftops for better vision!",
+    "Tip: Use SCAR-L for long-range fights!",
+    "Tip: Avoid staying in open areas too long!",
+    "Tip: Practice in Aim Trainer before matches!",
+    "Tip: Check your flanks every 10 seconds!",
+    "Tip: Use Desert Eagle for quick follow-up shots!",
+    "Tip: Strafe while shooting to dodge enemy fire!",
+    "Tip: On Downtown, use crates for cover!",
+    "Tip: Set mouse sensitivity to 0.4 for better aim!",
+    "Tip: Take breaks after losing 2 matches in a row!",
+    "Tip: Use AWP for sniping on Downtown rooftops!",
+    "Tip: Play Gun Only to boost your ELO faster!",
+    "Tip: Disable mouse acceleration in Windows!",
+    "Tip: Focus on one enemy at a time!",
+    "Tip: Watch YouTube guides for new strategies!"
 }
 
--- Отслеживание прицела
+-- Функция для обновления интерфейса
+local function updateStats()
+    kd = deaths > 0 and kills / deaths or kills
+    KillsLabel.Text = "Kills: " .. kills
+    DeathsLabel.Text = "Deaths: " .. deaths
+    KDLabel.Text = "K/D: " .. string.format("%.2f", kd)
+end
+
+-- Отслеживание киллов через leaderstats
+LocalPlayer:WaitForChild("leaderstats")
+local killsStat = LocalPlayer.leaderstats:FindFirstChild("Kills")
+if killsStat then
+    kills = killsStat.Value
+    killsStat:GetPropertyChangedSignal("Value"):Connect(function()
+        kills = killsStat.Value
+        updateStats()
+    end)
+end
+
+-- Отслеживание смертей через leaderstats
+local deathsStat = LocalPlayer.leaderstats:FindFirstChild("Deaths")
+if deathsStat then
+    deaths = deathsStat.Value
+    deathsStat:GetPropertyChangedSignal("Value"):Connect(function()
+        deaths = deathsStat.Value
+        updateStats()
+    end)
+end
+
+-- Отслеживание смертей через персонажа (если leaderstats не работает)
+LocalPlayer.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.Died:Connect(function()
+        deaths = deaths + 1
+        updateStats()
+    end)
+end)
+
+-- Отслеживание прицела (для визуального индикатора)
 RunService.RenderStepped:Connect(function()
     local mouse = LocalPlayer:GetMouse()
     local closestPlayer, closestDistance = nil, math.huge
@@ -105,34 +159,6 @@ RunService.RenderStepped:Connect(function()
         Indicator.BackgroundColor3 = Color3.new(1, 0, 0)
     else
         Indicator.BackgroundColor3 = Color3.new(0, 1, 0)
-    end
-end)
-
--- Считаем киллы (имитация)
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local mouse = LocalPlayer:GetMouse()
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local humanoidRootPart = player.Character.HumanoidRootPart
-                local screenPos, onScreen = game:GetService("Workspace").CurrentCamera:WorldToScreenPoint(humanoidRootPart.Position)
-                if onScreen then
-                    local mousePos = Vector2.new(mouse.X, mouse.Y)
-                    local targetPos = Vector2.new(screenPos.X, screenPos.Y)
-                    if (mousePos - targetPos).Magnitude < 50 then
-                        kills = kills + 1
-                        print("Kill: ", player.Name)
-                    end
-                end
-            end
-        end
-        if math.random() < 0.1 then
-            deaths = deaths + 1
-        end
-        kd = deaths > 0 and kills / deaths or kills
-        KillsLabel.Text = "Kills: " .. kills
-        DeathsLabel.Text = "Deaths: " .. deaths
-        KDLabel.Text = "K/D: " .. string.format("%.2f", kd)
     end
 end)
 
